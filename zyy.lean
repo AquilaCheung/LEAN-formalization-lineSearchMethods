@@ -849,7 +849,7 @@ by
       ring
 
 
-theorem zoutendijk_theorem
+theorem zoutendijkTheorem
   (c1 γ α0 L c2 : ℝ)
   (hc1 : 0 < c1 ∧ c1 < 1)
   (hγ : 0 < γ ∧ γ < 1)
