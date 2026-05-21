@@ -14,13 +14,13 @@ variable (f : Vec n → ℝ)
 def innerpro (x y : Vec n) : ℝ :=
   ∑ i : Fin n, x i * y i
 
-axiom innerpro_self_pos (x : Vec n) :
+axiom innerproSelfPos (x : Vec n) :
   innerpro x x > 0
 
-axiom norm_sq_eq_inner (x : Vec n) :
+axiom normSqEqInner (x : Vec n) :
   (norm x)^2 = innerpro x x
 
-axiom cauchy_schwarz (x y : Vec n) :
+axiom cauchySchwarz (x y : Vec n) :
   innerpro x y ≤ norm x * norm y
 
 variable (grad : Vec n → Vec n)
@@ -40,12 +40,12 @@ axiom first_order_approx (x d : Vec n) :
 def isDescentDirection (x d : Vec n) : Prop :=
   innerpro (grad x) d < 0
 
-lemma neg_grad_is_descent (x : Vec n) :
+lemma negGradIsDescent (x : Vec n) :
   isDescentDirection grad x (- grad x) := by
   unfold isDescentDirection
   have hpos :
       innerpro (grad x) (grad x) > 0 :=
-    innerpro_self_pos (grad x)
+    innerproSelfPos (grad x)
   have hneg :
       innerpro (grad x) (-grad x)
         = - innerpro (grad x) (grad x) := by
@@ -55,7 +55,7 @@ lemma neg_grad_is_descent (x : Vec n) :
     simpa using hpos
   simpa [hneg] using this
 
-lemma descent_implies_decrease
+lemma descentImpliesDecrease
   (x d : Vec n)
   (hdesc : isDescentDirection grad x d) :
   ∃ α > 0, f (fun i => x i + α * d i) < f x := by
@@ -86,7 +86,7 @@ def armijo (x d : Vec n) (α c1 : ℝ) : Prop :=
   f (fun i => x i + α * d i)
     ≤ f x + c1 * α * innerpro (grad x) d
 
-lemma exists_armijo_step
+lemma existsArmijoStep
   (x d : Vec n) (c1 : ℝ)
   (hdesc : isDescentDirection grad x d)
   (hc1 : 0 < c1 ∧ c1 < 1) :
@@ -124,56 +124,56 @@ lemma exists_armijo_step
 
 -- backtracking
 
-def backtrack_step (γ : ℝ) (α : ℝ) : ℝ :=
+def backtrackStep (γ : ℝ) (α : ℝ) : ℝ :=
   γ * α
 
-def backtrack_pow (γ α0 : ℝ) (k : ℕ) : ℝ :=
+def backtrackPow (γ α0 : ℝ) (k : ℕ) : ℝ :=
   (γ ^ k) * α0
 
-def exists_backtracking_step
+def existsBacktrackingStep
   (x d : Vec n) (c1 γ α0 : ℝ) : Prop :=
   ∃ k : ℕ,
-    armijo f grad x d (backtrack_pow γ α0 k) c1
+    armijo f grad x d (backtrackPow γ α0 k) c1
 
-axiom backtracking_finds_step
+axiom backtrackingFindsStep
   (x d : Vec n) (c1 γ α0 : ℝ)
   (hdesc : isDescentDirection grad x d)
   (hc1 : 0 < c1 ∧ c1 < 1)
   (hγ : 0 < γ ∧ γ < 1)
   (hα0 : α0 > 0) :
   ∃ k : ℕ,
-    armijo f grad x d (backtrack_pow γ α0 k) c1
+    armijo f grad x d (backtrackPow γ α0 k) c1
 
-noncomputable def bt_index
+noncomputable def btIndex
   (x d : Vec n) (c1 γ α0 : ℝ)
   (hdesc : isDescentDirection grad x d)
   (hc1 : 0 < c1 ∧ c1 < 1)
   (hγ : 0 < γ ∧ γ < 1)
   (hα0 : α0 > 0) : ℕ :=
   Classical.choose
-    (backtracking_finds_step
+    (backtrackingFindsStep
       f grad x d c1 γ α0 hdesc hc1 hγ hα0)
 
-noncomputable def bt_alpha
+noncomputable def btAlpha
   (x d : Vec n) (c1 γ α0 : ℝ)
   (hdesc : isDescentDirection grad x d)
   (hc1 : 0 < c1 ∧ c1 < 1)
   (hγ : 0 < γ ∧ γ < 1)
   (hα0 : α0 > 0) : ℝ :=
-  backtrack_pow γ α0
-    (bt_index f grad x d c1 γ α0 hdesc hc1 hγ hα0)
+  backtrackPow γ α0
+    (btIndex f grad x d c1 γ α0 hdesc hc1 hγ hα0)
 
-lemma bt_alpha_pos
+lemma btAlphaPos
   (x d : Vec n) (c1 γ α0 : ℝ)
   (hdesc : isDescentDirection grad x d)
   (hc1 : 0 < c1 ∧ c1 < 1)
   (hγ : 0 < γ ∧ γ < 1)
   (hα0 : α0 > 0) :
-  bt_alpha f grad x d c1 γ α0 hdesc hc1 hγ hα0 > 0 := by
-  unfold bt_alpha
+  btAlpha f grad x d c1 γ α0 hdesc hc1 hγ hα0 > 0 := by
+  unfold btAlpha
   have hγpos : 0 < γ := hγ.1
   have hpow :
-      0 < γ ^ (bt_index f grad x d c1 γ α0 hdesc hc1 hγ hα0) :=
+      0 < γ ^ (btIndex f grad x d c1 γ α0 hdesc hc1 hγ hα0) :=
     pow_pos hγpos _
   exact mul_pos hpow hα0
 
@@ -194,7 +194,7 @@ noncomputable def next_x
   (hdesc : isDescentDirection grad x (-grad x)) :
   Vec n :=
   update x (-grad x)
-    (bt_alpha f grad x (-grad x) c1 γ α0 hdesc hc1 hγ hα0)
+    (btAlpha f grad x (-grad x) c1 γ α0 hdesc hc1 hγ hα0)
 
 noncomputable def x_seq
   (c1 γ α0 : ℝ)
@@ -213,7 +213,7 @@ lemma update_eq_fun (x d : Vec n) (α : ℝ) :
   update x d α = (fun i => x i + α * d i) :=
   rfl
 
-lemma one_step_descent
+lemma oneStepDescent
   (x : Vec n)
   (c1 γ α0 : ℝ)
   (hc1 : 0 < c1 ∧ c1 < 1)
@@ -225,19 +225,19 @@ lemma one_step_descent
   unfold next_x
 
   let α :=
-    bt_alpha f grad x (-grad x) c1 γ α0 hdesc hc1 hγ hα0
+    btAlpha f grad x (-grad x) c1 γ α0 hdesc hc1 hγ hα0
 
 
   have hαdef :
     α =
-      backtrack_pow γ α0
+      backtrackPow γ α0
         (Classical.choose
-          (backtracking_finds_step
+          (backtrackingFindsStep
             f grad x (-grad x) c1 γ α0 hdesc hc1 hγ hα0)) := rfl
 
   have hA :=
     Classical.choose_spec
-      (backtracking_finds_step
+      (backtrackingFindsStep
         f grad x (-grad x) c1 γ α0 hdesc hc1 hγ hα0)
 
   unfold armijo at hA
@@ -253,7 +253,7 @@ lemma one_step_descent
 
   have hαpos :
     α > 0 :=
-    bt_alpha_pos f grad x (-grad x) c1 γ α0 hdesc hc1 hγ hα0
+    btAlphaPos f grad x (-grad x) c1 γ α0 hdesc hc1 hγ hα0
 
   have hprod :
     c1 * α * innerpro (grad x) (-grad x) < 0 := by
@@ -285,7 +285,7 @@ def goldstein (x d : Vec n) (α c : ℝ) : Prop :=
   f (fun i => x i + α * d i)
     ≥ f x + (1 - c) * α * innerpro (grad x) d
 
-lemma goldstein_implies_armijo
+lemma goldsteinImpliesArmijo
   (x d : Vec n) (α c : ℝ)
   (h : goldstein f grad x d α c) :
   armijo f grad x d α c := by
@@ -293,7 +293,7 @@ lemma goldstein_implies_armijo
   unfold armijo
   exact h.1
 
-lemma armijo_implies_strict_decrease
+lemma armijoImpliesStrictDecrease
   (x d : Vec n)
   (α c1 : ℝ)
   (hA : armijo f grad x d α c1)
@@ -332,7 +332,7 @@ lemma innerpro_sub_left (x y d : Vec n) :
   unfold innerpro
   simp [sub_mul, Finset.sum_sub_distrib]
 
-lemma wolfe_implies_armijo
+lemma wolfeImpliesArmijo
   (x d : Vec n) (α c1 c2 : ℝ)
   (h : wolfe f grad x d α c1 c2) :
   armijo f grad x d α c1 := by
@@ -340,7 +340,7 @@ lemma wolfe_implies_armijo
   unfold armijo
   exact h.1
 
-lemma wolfe_curvature_ineq_main
+lemma wolfeCurvatureIneqMain
   (f : Vec n → ℝ)
   (grad : Vec n → Vec n)
   (x d : Vec n) (α c1 c2 : ℝ)
@@ -379,7 +379,7 @@ lemma wolfe_curvature_ineq_main
   simpa [h1, h3] using h2
 
 
-lemma lipschitz_upper_bound
+lemma lipschitzUpperBound
   (x d : Vec n)
   (α L : ℝ)
   (hL : L > 0)
@@ -412,7 +412,7 @@ lemma lipschitz_upper_bound
       ≤
     norm (grad (fun i => x i + α * d i) - grad x)
       * norm d :=
-    cauchy_schwarz _ _
+    cauchySchwarz _ _
 
   have hcombine :
     innerpro (grad (fun i => x i + α * d i) - grad x) d
@@ -462,13 +462,13 @@ lemma alpha_lower_bound_mul
     (c2 - 1) * innerpro (grad x) d
       ≤ innerpro (grad (fun i => x i + α * d i) - grad x) d := by
     exact
-      wolfe_curvature_ineq_main f grad x d α c1 c2 hw
+      wolfeCurvatureIneqMain f grad x d α c1 c2 hw
 
   have h2 :
     innerpro (grad (fun i => x i + α * d i) - grad x) d
       ≤ L * α * (norm d)^2 := by
     exact
-      (lipschitz_upper_bound
+      (lipschitzUpperBound
         (grad := grad)
         (x := x) (d := d)
         (α := α) (L := L)
@@ -599,7 +599,7 @@ by
           (L * innerpro (grad x) (grad x)) :=
   by
     simpa
-      [hinner, norm_neg, norm_sq_eq_inner,
+      [hinner, norm_neg, normSqEqInner,
        mul_comm, mul_left_comm, mul_assoc]
       using hmain
 
@@ -611,7 +611,7 @@ by
     apply hpos
     have : (norm (grad x))^2 = 0 :=
     by
-      simpa [norm_sq_eq_inner] using h
+      simpa [normSqEqInner] using h
     have : norm (grad x) = 0 :=
       pow_eq_zero this
     exact this
@@ -657,7 +657,7 @@ by
 
   exact div_nonneg hnum.le hden.le
 
-lemma innerpro_cos_theta_identity
+lemma innerproCosThetaIdentity
   (x d : Vec n)
   (hgrad : norm (grad x) ≠ 0)
   (hd : norm d ≠ 0) :
@@ -698,7 +698,7 @@ by
   exact le_trans hA hrhs
 
 
-lemma zoutendijk_step_core
+lemma zoutendijkStepCore
   (x d : Vec n)
   (α c1 c2 L : ℝ)
   (hL : L > 0)
@@ -714,7 +714,7 @@ lemma zoutendijk_step_core
         * (norm (grad x))^2 :=
 by
   have h_armijo : armijo f grad x d α c1 :=
-    wolfe_implies_armijo f grad x d α c1 c2 hwolfe
+    wolfeImpliesArmijo f grad x d α c1 c2 hwolfe
 
   unfold armijo at h_armijo
 
@@ -862,7 +862,7 @@ theorem zoutendijk_theorem
       wolfe f grad
         (x_seq f grad x0 c1 γ α0 hc1 hγ hα0 hdesc_all k)
         (-grad (x_seq f grad x0 c1 γ α0 hc1 hγ hα0 hdesc_all k))
-        (bt_alpha f grad
+        (btAlpha f grad
           (x_seq f grad x0 c1 γ α0 hc1 hγ hα0 hdesc_all k)
           (-grad (x_seq f grad x0 c1 γ α0 hc1 hγ hα0 hdesc_all k))
           c1 γ α0
@@ -871,7 +871,7 @@ theorem zoutendijk_theorem
         c1 c2)
   (hα_pos_all :
     ∀ k,
-      bt_alpha f grad
+      btAlpha f grad
         (x_seq f grad x0 c1 γ α0 hc1 hγ hα0 hdesc_all k)
         (-grad (x_seq f grad x0 c1 γ α0 hc1 hγ hα0 hdesc_all k))
         c1 γ α0
@@ -918,11 +918,11 @@ by
     let x_i := x_seq_vec i
     let d_i := -grad x_i
     let α_i :=
-      bt_alpha f grad x_i d_i c1 γ α0
+      btAlpha f grad x_i d_i c1 γ α0
         (hdesc_all x_i) hc1 hγ hα0
 
     have h_core :=
-      zoutendijk_step_core
+      zoutendijkStepCore
         (f := f) (grad := grad)
         (x := x_i) (d := d_i) (α := α_i)
         (c1 := c1) (c2 := c2) (L := L)
@@ -1091,7 +1091,7 @@ axiom subseq_sum_le_full_sum
 
 
 
-theorem global_convergence_core
+theorem globalConvergenceCore
   (n : ℕ)
   (f : Vec n → ℝ)
   (grad : Vec n → Vec n)
