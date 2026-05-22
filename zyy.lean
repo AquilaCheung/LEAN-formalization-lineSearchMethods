@@ -1225,3 +1225,89 @@ theorem globalConvergenceCore
   have : (K : ℝ) * ε ^ 2 < L + ε ^ 2 := by
     linarith
   exact lt_irrefl _ (lt_of_le_of_lt hbig this)
+
+
+
+
+-- Problem Data
+
+
+structure ProblemData (f : Vec n → ℝ)
+  (grad : Vec n → Vec n) : Prop where
+
+  grad_lip :
+    ∃ L > 0,
+      ∀ x y : Vec n,
+        norm (grad x - grad y)
+          ≤ L * norm (fun i => x i - y i)
+
+  f_lower_bounded :
+    ∃ m : ℝ, ∀ x : Vec n, f x ≥ m
+
+  first_order :
+    ∀ x d : Vec n,
+      ∃ ε > 0,
+        ∀ α ∈ Set.Ioo (0 : ℝ) ε,
+          f (fun i => x i + α * d i)
+            <
+          f x + α * innerpro (grad x) d
+
+
+
+-- Backtracking Line Search Algorithm
+
+
+structure BacktrackingGD
+  (f : Vec n → ℝ)
+  (grad : Vec n → Vec n)
+  (x0 : Vec n)
+  (c1 γ α0 : ℝ)
+  extends ProblemData (f := f) (grad := grad) where
+
+  hc1 : 0 < c1 ∧ c1 < 1
+  hγ : 0 < γ ∧ γ < 1
+  hα0 : α0 > 0
+
+  x : ℕ → Vec n
+  x_init :
+    x 0 = x0
+
+  dir :
+    ℕ → Vec n
+  dir_def :
+    ∀ k,
+      dir k = - grad (x k)
+
+  hdesc :
+    ∀ k,
+      isDescentDirection grad (x k) (dir k)
+
+  α :
+    ℕ → ℝ
+  α_def :
+    ∀ k,
+      α k =
+        bt_alpha f grad
+          (x k)
+          (dir k)
+          c1 γ α0
+          (hdesc k)
+          hc1 hγ hα0
+
+  update_rule :
+    ∀ k,
+      x (k+1)
+        =
+      update
+        (x k)
+        (dir k)
+        (α k)
+
+  armijo_step :
+    ∀ k,
+      armijo
+        f grad
+        (x k)
+        (dir k)
+        (α k)
+        c1
