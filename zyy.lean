@@ -1287,7 +1287,7 @@ structure BacktrackingGD
   α_def :
     ∀ k,
       α k =
-        bt_alpha f grad
+        btAlpha f grad
           (x k)
           (dir k)
           c1 γ α0
