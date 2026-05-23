@@ -1229,85 +1229,128 @@ theorem globalConvergenceCore
 
 
 
--- Problem Data
+-- (add) section 3.6 : nonmonotone line search
 
-
-structure ProblemData (f : Vec n → ℝ)
-  (grad : Vec n → Vec n) : Prop where
-
-  grad_lip :
-    ∃ L > 0,
-      ∀ x y : Vec n,
-        norm (grad x - grad y)
-          ≤ L * norm (fun i => x i - y i)
-
-  f_lower_bounded :
-    ∃ m : ℝ, ∀ x : Vec n, f x ≥ m
-
-  first_order :
-    ∀ x d : Vec n,
-      ∃ ε > 0,
-        ∀ α ∈ Set.Ioo (0 : ℝ) ε,
-          f (fun i => x i + α * d i)
-            <
-          f x + α * innerpro (grad x) d
-
-
-
--- Backtracking Line Search Algorithm
-
-
-structure BacktrackingGD
+axiom grippoRef
   (f : Vec n → ℝ)
-  (grad : Vec n → Vec n)
-  (x0 : Vec n)
-  (c1 γ α0 : ℝ)
-  extends ProblemData (f := f) (grad := grad) where
+  (x_seq : ℕ → Vec n)
+  (M : ℕ) :
+  ℕ → ℝ
 
-  hc1 : 0 < c1 ∧ c1 < 1
-  hγ : 0 < γ ∧ γ < 1
-  hα0 : α0 > 0
+def grippo
+  (x_seq : ℕ → Vec n)
+  (d_seq : ℕ → Vec n)
+  (α_seq : ℕ → ℝ)
+  (c1 : ℝ)
+  (M : ℕ)
+  (k : ℕ) : Prop :=
 
-  x : ℕ → Vec n
-  x_init :
-    x 0 = x0
+  f (x_seq (k + 1))
+    ≤
+  grippoRef f x_seq M k
+    +
+  c1 * α_seq k *
+      innerpro
+        (grad (x_seq k))
+        (d_seq k)
 
-  dir :
-    ℕ → Vec n
-  dir_def :
-    ∀ k,
-      dir k = - grad (x k)
+def qseq
+  (η : ℝ) : ℕ → ℝ
+| 0 => 1
+| (k + 1) => η * qseq η k + 1
 
-  hdesc :
-    ∀ k,
-      isDescentDirection grad (x k) (dir k)
+noncomputable def cseq
+  (x_seq : ℕ → Vec n)
+  (η : ℝ) : ℕ → ℝ
+| 0 => f (x_seq 0)
+| (k + 1) =>
+    (
+      η * (qseq η k) * (cseq x_seq η k)
+      +
+      f (x_seq (k + 1))
+    )
+    /
+    (qseq η (k + 1))
 
-  α :
-    ℕ → ℝ
-  α_def :
-    ∀ k,
-      α k =
-        btAlpha f grad
-          (x k)
-          (dir k)
-          c1 γ α0
-          (hdesc k)
-          hc1 hγ hα0
+def zhangHager
+  (x_seq : ℕ → Vec n)
+  (d_seq : ℕ → Vec n)
+  (α_seq : ℕ → ℝ)
+  (η c1 : ℝ)
+  (k : ℕ) : Prop :=
 
-  update_rule :
-    ∀ k,
-      x (k+1)
-        =
-      update
-        (x k)
-        (dir k)
-        (α k)
+  f (x_seq (k + 1))
+    ≤
+  cseq f x_seq η k
+    +
+  c1 * α_seq k *
+        innerpro
+          (grad (x_seq k))
+          (d_seq k)
 
-  armijo_step :
-    ∀ k,
-      armijo
-        f grad
-        (x k)
-        (dir k)
-        (α k)
-        c1
+lemma qseqEtaZero :
+  ∀ k : ℕ,
+    qseq (0 : ℝ) k = 1
+:= by
+  intro k
+  induction k with
+  | zero =>
+      simp [qseq]
+  | succ k ih =>
+      simp [qseq, ih]
+
+lemma cseqEtaZero
+  (x_seq : ℕ → Vec n) :
+  ∀ k : ℕ,
+    cseq f x_seq 0 k
+      =
+    f (x_seq k)
+:= by
+  intro k
+  induction k with
+  | zero =>
+      simp [cseq]
+  | succ k ih =>
+      simp [cseq, qseqEtaZero, ih]
+
+lemma zhangHagerEtaZero
+  (x_seq : ℕ → Vec n)
+  (d_seq : ℕ → Vec n)
+  (α_seq : ℕ → ℝ)
+  (c1 : ℝ)
+  (k : ℕ)
+  (hstep :
+    x_seq (k + 1)
+      =
+    fun i =>
+      x_seq k i + α_seq k * d_seq k i) :
+  zhangHager f grad x_seq d_seq α_seq 0 c1 k
+    ↔
+  armijo
+    f grad
+    (x_seq k)
+    (d_seq k)
+    (α_seq k)
+    c1
+:= by
+  unfold zhangHager
+  unfold armijo
+  rw [cseqEtaZero]
+  constructor <;> intro h
+  · simpa [hstep] using h
+  · simpa [hstep] using h
+
+lemma cseqConvex
+  (x_seq : ℕ → Vec n)
+  (η : ℝ)
+  (k : ℕ) :
+  cseq f x_seq η (k + 1)
+    =
+  (η * qseq η k / qseq η (k + 1))
+      * cseq f x_seq η k
+  +
+  (1 / qseq η (k + 1))
+      * f (x_seq (k + 1))
+:= by
+  simp [cseq]
+  ring
