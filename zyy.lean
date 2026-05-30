@@ -1,5 +1,10 @@
-import MIL.C10_Linear_Algebra.S01_Vector_Spaces
-import MIL.C10_Linear_Algebra.S02_Subspaces
+import Mathlib.LinearAlgebra.Matrix.Determinant.Basic
+import Mathlib.LinearAlgebra.Eigenspace.Minpoly
+import Mathlib.LinearAlgebra.Charpoly.Basic
+
+--import MIL.C10_Linear_Algebra.S02_Subspaces
+
+import MIL.Common
 
 open Classical
 open BigOperators
@@ -379,6 +384,133 @@ lemma wolfeCurvatureIneqMain
   simpa [h1, h3] using h2
 
 
+-- (add) part 4 : nonmonotone line search
+
+axiom grippoRef
+  (f : Vec n → ℝ)
+  (x_seq : ℕ → Vec n)
+  (M : ℕ) :
+  ℕ → ℝ
+
+def grippo
+  (x_seq : ℕ → Vec n)
+  (d_seq : ℕ → Vec n)
+  (α_seq : ℕ → ℝ)
+  (c1 : ℝ)
+  (M : ℕ)
+  (k : ℕ) : Prop :=
+
+  f (x_seq (k + 1))
+    ≤
+  grippoRef f x_seq M k
+    +
+  c1 * α_seq k *
+      innerpro
+        (grad (x_seq k))
+        (d_seq k)
+
+def qseq
+  (η : ℝ) : ℕ → ℝ
+| 0 => 1
+| (k + 1) => η * qseq η k + 1
+
+noncomputable def cseq
+  (x_seq : ℕ → Vec n)
+  (η : ℝ) : ℕ → ℝ
+| 0 => f (x_seq 0)
+| (k + 1) =>
+    (
+      η * (qseq η k) * (cseq x_seq η k)
+      +
+      f (x_seq (k + 1))
+    )
+    /
+    (qseq η (k + 1))
+
+def zhangHager
+  (x_seq : ℕ → Vec n)
+  (d_seq : ℕ → Vec n)
+  (α_seq : ℕ → ℝ)
+  (η c1 : ℝ)
+  (k : ℕ) : Prop :=
+
+  f (x_seq (k + 1))
+    ≤
+  cseq f x_seq η k
+    +
+  c1 * α_seq k *
+        innerpro
+          (grad (x_seq k))
+          (d_seq k)
+
+lemma qseqEtaZero :
+  ∀ k : ℕ,
+    qseq (0 : ℝ) k = 1
+:= by
+  intro k
+  induction k with
+  | zero =>
+      simp [qseq]
+  | succ k ih =>
+      simp [qseq, ih]
+
+lemma cseqEtaZero
+  (x_seq : ℕ → Vec n) :
+  ∀ k : ℕ,
+    cseq f x_seq 0 k
+      =
+    f (x_seq k)
+:= by
+  intro k
+  induction k with
+  | zero =>
+      simp [cseq]
+  | succ k ih =>
+      simp [cseq, qseqEtaZero, ih]
+
+lemma zhangHagerEtaZero
+  (x_seq : ℕ → Vec n)
+  (d_seq : ℕ → Vec n)
+  (α_seq : ℕ → ℝ)
+  (c1 : ℝ)
+  (k : ℕ)
+  (hstep :
+    x_seq (k + 1)
+      =
+    fun i =>
+      x_seq k i + α_seq k * d_seq k i) :
+  zhangHager f grad x_seq d_seq α_seq 0 c1 k
+    ↔
+  armijo
+    f grad
+    (x_seq k)
+    (d_seq k)
+    (α_seq k)
+    c1
+:= by
+  unfold zhangHager
+  unfold armijo
+  rw [cseqEtaZero]
+  constructor <;> intro h
+  · simpa [hstep] using h
+  · simpa [hstep] using h
+
+lemma cseqConvex
+  (x_seq : ℕ → Vec n)
+  (η : ℝ)
+  (k : ℕ) :
+  cseq f x_seq η (k + 1)
+    =
+  (η * qseq η k / qseq η (k + 1))
+      * cseq f x_seq η k
+  +
+  (1 / qseq η (k + 1))
+      * f (x_seq (k + 1))
+:= by
+  simp [cseq]
+  ring
+
+
 lemma lipschitzUpperBound
   (x d : Vec n)
   (α L : ℝ)
@@ -672,30 +804,7 @@ by
   ring
 
 
-lemma one_step_decrease_armijo
-  (x d : Vec n)
-  (α c1 : ℝ)
-  (hA : armijo f grad x d α c1)
-  (hdesc : innerpro (grad x) d < 0)
-  (hα : α > 0)
-  (hc1 : 0 < c1) :
-  f (fun i => x i + α * d i) ≤ f x :=
-by
-  unfold armijo at hA
 
-  have hneg :
-      c1 * α * innerpro (grad x) d ≤ 0 :=
-  by
-    have hpos : 0 < c1 * α :=
-      mul_pos hc1 hα
-    exact le_of_lt (mul_neg_of_pos_of_neg hpos hdesc)
-
-  have hrhs :
-      f x + c1 * α * innerpro (grad x) d ≤ f x :=
-  by
-    linarith
-
-  exact le_trans hA hrhs
 
 
 lemma zoutendijkStepCore
@@ -1225,132 +1334,3 @@ theorem globalConvergenceCore
   have : (K : ℝ) * ε ^ 2 < L + ε ^ 2 := by
     linarith
   exact lt_irrefl _ (lt_of_le_of_lt hbig this)
-
-
-
-
--- (add) section 3.6 : nonmonotone line search
-
-axiom grippoRef
-  (f : Vec n → ℝ)
-  (x_seq : ℕ → Vec n)
-  (M : ℕ) :
-  ℕ → ℝ
-
-def grippo
-  (x_seq : ℕ → Vec n)
-  (d_seq : ℕ → Vec n)
-  (α_seq : ℕ → ℝ)
-  (c1 : ℝ)
-  (M : ℕ)
-  (k : ℕ) : Prop :=
-
-  f (x_seq (k + 1))
-    ≤
-  grippoRef f x_seq M k
-    +
-  c1 * α_seq k *
-      innerpro
-        (grad (x_seq k))
-        (d_seq k)
-
-def qseq
-  (η : ℝ) : ℕ → ℝ
-| 0 => 1
-| (k + 1) => η * qseq η k + 1
-
-noncomputable def cseq
-  (x_seq : ℕ → Vec n)
-  (η : ℝ) : ℕ → ℝ
-| 0 => f (x_seq 0)
-| (k + 1) =>
-    (
-      η * (qseq η k) * (cseq x_seq η k)
-      +
-      f (x_seq (k + 1))
-    )
-    /
-    (qseq η (k + 1))
-
-def zhangHager
-  (x_seq : ℕ → Vec n)
-  (d_seq : ℕ → Vec n)
-  (α_seq : ℕ → ℝ)
-  (η c1 : ℝ)
-  (k : ℕ) : Prop :=
-
-  f (x_seq (k + 1))
-    ≤
-  cseq f x_seq η k
-    +
-  c1 * α_seq k *
-        innerpro
-          (grad (x_seq k))
-          (d_seq k)
-
-lemma qseqEtaZero :
-  ∀ k : ℕ,
-    qseq (0 : ℝ) k = 1
-:= by
-  intro k
-  induction k with
-  | zero =>
-      simp [qseq]
-  | succ k ih =>
-      simp [qseq, ih]
-
-lemma cseqEtaZero
-  (x_seq : ℕ → Vec n) :
-  ∀ k : ℕ,
-    cseq f x_seq 0 k
-      =
-    f (x_seq k)
-:= by
-  intro k
-  induction k with
-  | zero =>
-      simp [cseq]
-  | succ k ih =>
-      simp [cseq, qseqEtaZero, ih]
-
-lemma zhangHagerEtaZero
-  (x_seq : ℕ → Vec n)
-  (d_seq : ℕ → Vec n)
-  (α_seq : ℕ → ℝ)
-  (c1 : ℝ)
-  (k : ℕ)
-  (hstep :
-    x_seq (k + 1)
-      =
-    fun i =>
-      x_seq k i + α_seq k * d_seq k i) :
-  zhangHager f grad x_seq d_seq α_seq 0 c1 k
-    ↔
-  armijo
-    f grad
-    (x_seq k)
-    (d_seq k)
-    (α_seq k)
-    c1
-:= by
-  unfold zhangHager
-  unfold armijo
-  rw [cseqEtaZero]
-  constructor <;> intro h
-  · simpa [hstep] using h
-  · simpa [hstep] using h
-
-lemma cseqConvex
-  (x_seq : ℕ → Vec n)
-  (η : ℝ)
-  (k : ℕ) :
-  cseq f x_seq η (k + 1)
-    =
-  (η * qseq η k / qseq η (k + 1))
-      * cseq f x_seq η k
-  +
-  (1 / qseq η (k + 1))
-      * f (x_seq (k + 1))
-:= by
-  simp [cseq]
-  ring
