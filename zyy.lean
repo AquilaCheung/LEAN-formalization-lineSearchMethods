@@ -2,8 +2,6 @@ import Mathlib.LinearAlgebra.Matrix.Determinant.Basic
 import Mathlib.LinearAlgebra.Eigenspace.Minpoly
 import Mathlib.LinearAlgebra.Charpoly.Basic
 
---import MIL.C10_Linear_Algebra.S02_Subspaces
-
 import MIL.Common
 
 open Classical
